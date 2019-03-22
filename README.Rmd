@@ -1,0 +1,12 @@
+---
+title: "Veri Kazıma Pratiği"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Bu veri kazıma pratiği [NewsLabTurkey'de](newslabturkey.com) yayınlanan şu yazım için hazırlanmıştır. Pratikte [Yök Tez Merkezi verileri](https://tez.yok.gov.tr/UlusalTezMerkezi/IstatistikiBilgiler?islem=3) ve [Süperlig Gol İstatistikleri](https://www.mackolik.com/puan-durumu/t%C3%BCrkiye-spor-toto-s%C3%BCper-lig/istatistik/482ofyysbdbeoxauk19yg7tdt) kazınmıştır
+
+Detaylar: 

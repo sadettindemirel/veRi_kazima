@@ -1,0 +1,163 @@
+---
+title: "R ile Veri Kazıma Alıştırmaları"
+author: "**Sadettin Demirel**"
+date: "3/22/2019"
+output:
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Veri çağında yaşıyoruz. Önümüz arkamız sağımız solumuz veri. Hükümetler, uluslararası kuruluşlar, haber merkezleri verilerini kullanıma açıyor, bu veriler, araştırma, geliştirme, gazetecilik vb amaçları için kullanılıyor ve yeniden dağıtıma sokuluyor. Ama üretilen ve paylaşılan her veri açık veri statüsünde değil. Web ortamında paylaşılan her veri indirilemiyor, indirilse dahi uygun formatta olmadığı için kullanılamıyor.
+Twitter, Google, Facebook gibi büyük oluşumlar bu verileri bir API (Uygulama Programlama Arayüzü) hizmetiyle ticarileştirerek kullanıma sunuyor. Önceki yazımda "R ile tweet verisi nasıl çekilir" yazımda bunu detaylı olarak ele almıştım. Peki API hizmeti sunmayan web sitelerinin verileri nerede? Bu websitelerindeki verileri nasıl kazıyabiliriz? bu yazıda R kullanarak uygulamalı olarak anlatacağım.
+
+Anlatacağım yöntemle web sitelerindeki metin verileri (cümleler, paragrafları) de kazınabilir. Fakat bu pratikte web sayfalarına hapsedilmiş veri tablolarını kazıyacağız. 
+Veri kazıma pratiği için iki ayrı websitede adresinden yararlanacağız. İlki [Yök Tez Merkezi İstatistikleri](https://tez.yok.gov.tr/UlusalTezMerkezi/IstatistikiBilgiler?islem=3), diğeri [Maçkolik Süper Lig Gol istatistikleri](https://www.mackolik.com/puan-durumu/t%C3%BCrkiye-spor-toto-s%C3%BCper-lig/istatistik/482ofyysbdbeoxauk19yg7tdt) Her iki adresteki veriler de tablo formatında. O halde her biri için ayrı bir yöntem kullanarak, bu verileri kazıyalım.
+
+#### Kullanıcılacak paketler ve ön hazırlık
+
+Veri kazıma pratiğinde **rvest** paketini kullanacağız. Bunun yanısıra **tidyverse** ve **janitor** paketleri de kazınan verinin düzenlenmesi ve görselleştirilmesi için işimize yarayacak. 
+
+```{r message=FALSE, warning=FALSE}
+#paketleri yüklemeyi unutmayın!
+#install.packages("rvest")...
+library("rvest")
+library("tidyverse")
+library("janitor")
+```
+
+Paketleri çağırdıktan sonra yapmamız gereken kazıyacağımız web sayfalarının adresilerini R'a aktarmak. **read_html** fonksiyonu ile *adresleri* tanımlayarak bunu yapabiliriz. Bundan sonraki adımda tanımladığımız **yok_link** ve **mackolik** öğeleriyle işlemler yapacağız.
+
+```{r}
+yok_link <- read_html("https://tez.yok.gov.tr/UlusalTezMerkezi/IstatistikiBilgiler?islem=3")
+mackolik<- read_html("https://www.mackolik.com/puan-durumu/t%C3%BCrkiye-spor-toto-s%C3%BCper-lig/istatistik/482ofyysbdbeoxauk19yg7tdt")
+```
+
+#### Pratik 1: Yök Tez Merkezi Verileri
+
+Veri tablosu içeren html tabanlı tüm web sayfalarını *rvest* paketinin html_table() fonksiyonuyla kazıyabiliriz. Aşağıdaki işlemde yök tez merkezi verilerinin bulunduğu adresi html_table ile kazıdık. **fill = TRUE** argümanı sayesinde R veri tablosunda eksik verileri NA, yani eksik veri olarak okuyor. Ayrıca, kazıdığımız verileri **yok_tez** isimli yeni bir öğeye kaydettik, çünkü kazıdığımız veri henüz istediğimiz tablo formatında değil. **View(yok_tez)** kodu ile verinin ne kadar dağınık olduğuna göz atabiliriz.
+
+```{r}
+yok_tez <- yok_link %>% html_table(fill = TRUE)
+```
+
+Kazıdığımız veri **yok_tez** şuan R'ın veri formatlarından biri olan liste formatında. Listedeki [[1]] ve [[2]] numaraları iki ayrı veri tablosunndan oluştuğunu ifade ediyor. O halde her iki veri tablosunu göz atalım. Bakalım hangisi yök tez verileri.
+
+Birinci veri tablosu işimize yaraymayacak (junk) veriler içeriyor. İkinc tablo de ise konulara ve derecelere göre tez sayılarını görebiliryoruz. Tek veri tablosu ismi ve sütun isimleri değer olarak yer alıyor. 
+```{r}
+head(yok_tez[[2]])
+```
+Sütun isimlerini düzenlenmeden önce hala **yok_tez** listesinde bulunan 2. veri setini, veri tablosu olarak kaydedelim. Bu hem işimizi kolaylaştıracak hem de gereksiz veri setinden kurtulmuş olacağız. Bunu **as.data.freame()** fonksiyonu içerisine **yok_tez[[2]]** ekleyerek yapabiliriz. 
+
+```{r}
+yok_tablo <- as.data.frame(yok_tez[[2]])
+head(yok_tablo)
+```
+Yukarıdaki işlemle veri tablosunu **yok_tablo** olarak kaydettik. Bu aşamadan sonra eğer isterseniz bu veriyi dışarı aktarıp Excelde veya istediğiniz veri aracında temizleyerek kullanabilirsiniz. Dışarı aktarmak için aşağıdaki kodu kullanabilirsiniz.
+
+```{r echo=TRUE}
+write_csv(yok_tablo, "~/desktop/yok_tablo1.csv")
+```
+
+Bir diğer yol "R ekosisteminde dağınık veriler nasıl temizlenir" yazımda ele aldığım gibi bu veri tablosunu temizleyebilir, derli hale getirebiliriz. Fakat bu aşamada sütun isimlerini düzenlememiz yeterli olacaktır. Bunun için **dplyr** ve **janitor** paketlerini kullanacağız. 
+
+İlk olarak **select** komutuyla 1,,4,5,10.'cu sütunları seçiyoruz. Sonrasında **row_to_names** fonksiyonu ile hangi satırın sütun ismi olarak seçeceksek **row_number** argumanına belirtiyoruz. Bu veri setinde istediğimiz isimler 2. satırda. Diğer tanımladığımız argümanlar ise sütun isimleri olarak belirlediğimiz satırdaki verileri (**remove_row**) ve üst satırlardaki değerleri (**remove_rows_above**) temizlememizi sağlıyor.
+
+```{r}
+yok_derli <- yok_tablo %>% select(1,4,5,10) %>% row_to_names(row_number = 2, remove_row = TRUE, remove_rows_above = TRUE)
+head(yok_derli)
+```
+
+Kazıma işlemini tamamladık hatta kazınan veriyi biraz temizledik. Bundan sonraki adımda metin verisi olarak algılanan *Yüksek Lisans*, *Doktora* ve *Toplam* değişkenleri sayı verisine dönüştürülerek analiz devam ettirilebilir. Şimde geçelim ikinci veri kazıma pratiğine.
+
+#### Pratik2: Maçkolik Verileri
+
+İkinci pratikte Maçkolik Süperlig gol istatistiklerini yine **html_table** ile çekebiliriz. Ama işimizi kolaylaştırmayalım. Gol istatistiklerini metin verisi olarak çekip R'da birleştirelim. Bazı durumlarda html_table() fonksiyonu işe düzgün çalışmayabiliyor.
+
+ikinci adım ilkine göre biraz meşakatli. Bu adımda tablolardaki veriyi çekmek için sırasıyla **html_node** ve **html_text** komutlarını kullanacağız. Çünkü kazıyacağımız verileri htmel ve css node'ları ile web sitede görüntüleniyor. Veri tablosuna karşılıl gelen **node** ları bulabilmek için bir tarayıcı eklentisi kullanacağız: **sellector gadget**. Bu eklenti tarayıcılarda sağa tılayıp inpect seçeneğiyle aynı görevi görüyor. Farkı tabloya karşılık gelen Node'u zaman kaybetmeden elde ediyoruz.
+
+Maçkolik süper lig gol istatistiklerine açıyoruz ve eklenti ile oyuncu ismi üzerine tıklıyoruz. Sağ altta eklenti bize ilgili node'u verdi. Sonrasında yapmamız gereken node'u aşağıdaki olduğu gibi **html_nodes()** komutu içerisine ekleyebiliriz. Ve son olarak **html_text()** node'daki verileri metin verisine dönüştürdük. Veriyi **oyuncu** öğesine kaydettik. **View(oyuncu)** komutu ile neyi kazıdığımızı görebiliriz.
+
+```{r}
+oyuncu <- mackolik %>% html_nodes(".p0c-competition-player-ranking__player-name") %>% html_text(trim = TRUE)
+head(oyuncu)
+```
+
+Bundan sonraki adımlarda **takım** ve **gol_sayısı** içinde gerekli node'ları seçtikten aynı işlemi tekrarlayabiliriz. Bu arada *trim = TRUE* metin verisindeki gereksiz boş alanları kaldırıyor.
+
+```{r}
+takım <- mackolik %>% html_nodes(".p0c-competition-player-ranking__cell--team") %>% html_text(trim = TRUE)
+gol_sayisi <- mackolik %>% html_nodes(".p0c-competition-player-ranking__cell--stat") %>% html_text(trim = TRUE)
+
+```
+Her üç sütundeki değerleri kazıdık. Şimdi elimizdeki parçaları birleştirerek bir veri tablosu oluşturalım. Bu aşamada metin verisinden oluşan üç öğeyi **tibble** komutuyla tablo formatına dönüştürelim. **tibble**, **as.data.frame** komutunun modern hali diyebiliriz. Ayrıca Yeni Zelanda İngilizcesinde **table** anlamına geliyor.
+```{r}
+#verileri birleştirelim
+mackolik_derli <- tibble(oyuncu, takım, gol_sayisi)
+head(mackolik_derli)
+```
+Veri tablosunu oluşturduk ama **gol_sayisi** metin verisi olarak algılanmış. **as.numeric** komutu ile gol_sayısı değişkenini sayı formatına dönüştürelim.
+
+```{r}
+mackolik_derli$gol_sayisi <- as.numeric(mackolik_derli$gol_sayisi)
+head(mackolik_derli)
+```
+Evet yukarıdaki tabloda da görüldüğü üzere veri kazıma ve temizleme işlemini hallettik. Temizlenen veriye şuradan ulaşabilirsiniz:
+
+```{r}
+write.csv(mackolik_derli, "~/desktop/mackolik_derli.csv")
+```
+
+####Veri görselleştirmenin detaylı adımları
+Son olarak kazıdığımız ve temizlediğimiz veriyi görselleştirelim.
+
+1. Renkleri oluşturalım
+```{r}
+palette <- c(
+  "Galatasaray" = "#c40b13",
+  "Beşiktaş" = "#33313b",
+  "İstanbul Başakşehir" = "#f69314",
+  "Trabzonspor" = "#4592af",
+  "Alanyaspor" ="#dadddf",
+  "Çaykur Rizespor"= "#dadddf",
+  "Sivasspor"= "#dadddf",
+  "Yeni Malatyaspor"= "#dadddf",
+  "Antalyaspor"= "#dadddf",
+  "Kasımpaşa"= "#dadddf",
+  "Göztepe"= "#dadddf",
+  "BB Erzurumspor"= "#dadddf",
+  "Kayserispor"= "#dadddf",
+  "Konyaspor"= "#dadddf",
+  "MKE Ankaragücü" = "#dadddf")
+```
+
+2. Temayı özelleştirelim
+```{r}
+theme_custom1 <- function() {
+  theme_minimal() +
+    theme(
+      text = element_text(family = "Proxima Nova", color = "gray25"),
+      plot.title = element_text(face = "bold",size = 14),
+      plot.subtitle = element_text(size = 13),
+      axis.text.x= element_text(size=11),
+      axis.text.y = element_text(size=11),
+      plot.caption = element_text(size = 11, color = "gray30"),
+      plot.background = element_rect(fill = "#f6f5f5"),
+      legend.position = "none")
+}
+```
+
+3.Atılan golleri takımlara göre görselleştirelim
+```{r}
+ggplot(mackolik_derli, aes(fct_reorder(oyuncu, gol_sayisi),gol_sayisi, fill = takım, label = gol_sayisi))+
+  geom_col(show.legend = FALSE)+ 
+  geom_text(check_overlap = TRUE, hjust = -0.2)+
+  scale_fill_manual(values = palette)+
+  labs(x="",y="",title = "Süper Ligin Golcüleri 2018/2019", subtitle ="Sadece 4 takımın oyuncuları için renk kullanılmıştır" ,caption = "@demirelsadettin / kaynak: maçkolik")+
+  coord_flip()+theme_custom1()
+```
+
